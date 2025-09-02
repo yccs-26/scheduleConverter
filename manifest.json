@@ -1,9 +1,9 @@
 {
     "manifest_version": 3,
-    "name": "Time Zone",
+    "name": "scheduleConverter",
     "version": "1.0",
     "action": {
-        "default_title": "Time Zone"
+        "default_title": "scheduleConverter"
     },
     "permissions": ["storage", "tabs"],
     "background": {

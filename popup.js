@@ -47,103 +47,68 @@ function convertWallTimeToUTCISO(dateYYYYMMDD, hhmm, timeZone) {
   return new Date(utcMs).toISOString();
 }
 
-// 시간 파싱 함수 (예: "22시~23시 테니스", "22:00~23 테니스", "3~5 공부" -> {startTime: "22:00", endTime: "23:00", title: "테니스"})
+// 시간 파싱 함수: 범위/단일 시간 모두 지원
 function parseTimeAndTitle(input) {
-  // 다양한 시간 형식 지원
-  const patterns = [
-    // "22:00" 테니스 형식
-    /^(\d{1,2}):(\d{2})\s*(.+)$/,
-    // "22시 테니스" 형식
-    /^(\d{1,2})시\s*(.+)$/,
-    // "22시~23시 테니스" 형식
-    /^(\d{1,2})시\s*~\s*(\d{1,2})시\s*(.+)$/,
-    // "22:00~23 테니스" 형식  
-    /^(\d{1,2}):(\d{2})\s*~\s*(\d{1,2})\s*(.+)$/,
-    // "22~23 테니스" 형식
-    /^(\d{1,2})\s*~\s*(\d{1,2})\s*(.+)$/,
-    // "22시~23 테니스" 형식
-    /^(\d{1,2})시\s*~\s*(\d{1,2})\s*(.+)$/,
-    // "22~23시 테니스" 형식
-    /^(\d{1,2})\s*~\s*(\d{1,2})시\s*(.+)$/
-  ];
-  
-  for (let i = 0; i < patterns.length; i++) {
-    const match = input.match(patterns[i]);
-    if (match) {
-      let startHour, endHour, title;
-      
-      if (i === 0) {
-        // "22:00" 테니스 형식
-        startHour = parseInt(match[1]);
-        title = match[3].trim();
-      }
-      else if (i === 1) {
-        // "22시~23시 테니스" 형식
-        startHour = parseInt(match[1]);
-        endHour = parseInt(match[2]);
-        title = match[3].trim();
-      } else if (i === 2) {
-        // "22:00~23 테니스" 형식
-        startHour = parseInt(match[1]);
-        endHour = parseInt(match[3]);
-        title = match[4].trim();
-      } else {
-        // "22~23 테니스", "22시~23 테니스", "22~23시 테니스" 형식
-        startHour = parseInt(match[1]);
-        endHour = parseInt(match[2]);
-        title = match[3].trim();
-      }
-      
-      // 제목이 너무 짧으면 시간 파싱이 아닐 가능성이 높음 (3글자 이하)
-      if (title.length <= 3) {
-        continue;
-      }
-      
-      // 시간 유효성 검사
-      if (startHour >= 0 && startHour <= 23 && endHour >= 0 && endHour <= 23) {
-        return {
-          startTime: `${startHour.toString().padStart(2, '0')}:00`,
-          endTime: `${endHour.toString().padStart(2, '0')}:00`,
-          title: title
-        };
-      }
+  const text = input.trim();
+  const normalized = text
+    .replace(/[~～〜]/g, '~')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // 1) 범위: HH[:mm] ~ HH[:mm] [Title]  (한글 '시' 없어도 동작)
+  let range = normalized.match(/^(\d{1,2})(?::(\d{2}))?\s*[~\-]\s*(\d{1,2})(?::(\d{2}))?\s*(.*)$/);
+  if (range) {
+    const sh = parseInt(range[1], 10);
+    const sm = range[2] ? parseInt(range[2], 10) : 0;
+    const ehRaw = parseInt(range[3], 10);
+    const em = range[4] ? parseInt(range[4], 10) : sm; // 분 생략 시 시작 분과 동일
+    const title = (range[5] || '').trim();
+    if (sh >= 0 && sh <= 23 && ehRaw >= 0 && ehRaw <= 24 && sm >= 0 && sm <= 59 && em >= 0 && em <= 59) {
+      const eh = ehRaw === 24 ? 0 : ehRaw; // 24시는 00시로 정규화
+      return {
+        startTime: `${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}`,
+        endTime: `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`,
+        title: title || text // 제목이 비어도 원문 유지
+      };
     }
   }
-  
-  // 단일 시간 + 제목 (예: "10:00 테니스", "22시 회의") 처리
-  // 1) HH:mm Title
-  let single = input.match(/^(\d{1,2}):(\d{2})\s+(.+)$/);
+  // 1-보강) '시' 표기가 섞인 범위도 허용: [HH[:mm]]시 ~ [HH[:mm]]시 [Title]
+  range = normalized.match(/^(\d{1,2})(?::(\d{2}))?\s*시\s*[~\-]\s*(\d{1,2})(?::(\d{2}))?\s*시?\s*(.*)$/);
+  if (range) {
+    const sh = parseInt(range[1], 10);
+    const sm = range[2] ? parseInt(range[2], 10) : 0;
+    const ehRaw = parseInt(range[3], 10);
+    const em = range[4] ? parseInt(range[4], 10) : sm;
+    const title = (range[5] || '').trim();
+    if (sh >= 0 && sh <= 23 && ehRaw >= 0 && ehRaw <= 24 && sm >= 0 && sm <= 59 && em >= 0 && em <= 59) {
+      const eh = ehRaw === 24 ? 0 : ehRaw;
+      return {
+        startTime: `${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}`,
+        endTime: `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`,
+        title: title || text
+      };
+    }
+  }
+
+  // 2) 단일: HH[:mm](시) Title → 기본 1시간
+  const single = normalized.match(/^(\d{1,2})(?::(\d{2}))?\s*시?\s*(.*)$/);
   if (single) {
-    const hour = parseInt(single[1]);
-    const minute = parseInt(single[2]);
-    const title = single[3].trim();
-    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 && title.length > 0) {
-      const startTime = `${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}`;
-      const endHour = (hour + 1) % 24; // 기본 지속시간: 1시간
-      const endTime = `${endHour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}`;
-      return { startTime, endTime, title };
+    const h = parseInt(single[1], 10);
+    const m = single[2] ? parseInt(single[2], 10) : 0;
+    const title = (single[3] || '').trim();
+    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+      const endH = (h + 1) % 24;
+      return {
+        startTime: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+        endTime: `${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+        title: title || text
+      };
     }
   }
-  // 2) HH시 Title (분은 00으로 간주)
-  single = input.match(/^(\d{1,2})시\s+(.+)$/);
-  if (single) {
-    const hour = parseInt(single[1]);
-    const title = single[2].trim();
-    if (hour >= 0 && hour <= 23 && title.length > 0) {
-      const startTime = `${hour.toString().padStart(2,'0')}:00`;
-      const endHour = (hour + 1) % 24;
-      const endTime = `${endHour.toString().padStart(2,'0')}:00`;
-      return { startTime, endTime, title };
-    }
-  }
-  
-  // 기본 형식이 아닌 경우 기본 시간 사용
+
+  // 3) 실패 시 기본 시간 사용
   const defaultTime = document.getElementById("defaultTime").value;
-  return {
-    startTime: defaultTime,
-    endTime: defaultTime,
-    title: input
-  };
+  return { startTime: defaultTime, endTime: defaultTime, title: text };
 }
 
 // 스토리지에서 스케줄 가져와서 이벤트 변환
@@ -371,28 +336,22 @@ document.addEventListener("DOMContentLoaded", () => {
     deleteScheduleByIndex(editingEventIndex);
     closeEventModal();
   });
-  // ESC 키로 모달 닫기
+  // ESC/Enter 키 처리: ESC는 닫기, Enter는 저장
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      const modal = document.getElementById("eventModal");
-      if (modal && modal.style.display !== "none") {
-        e.stopPropagation();
-        e.preventDefault();
-        closeEventModal();
-      }
-    }
-  });
-  if (e.key === "Enter") {
     const modal = document.getElementById("eventModal");
-    if (modal && modal.style.display !== "none") {
+    const isOpen = modal && modal.style.display !== "none";
+    if (!isOpen) return;
+
+    if (e.key === "Escape") {
       e.stopPropagation();
       e.preventDefault();
-      const saveBtn = document.getElementById("saveEvent");
-      if (saveBtn) saveBtn.click();
+      closeEventModal();
     }
-    else {
-      const input = document.getElementById("editInput");
-      if (input) input.focus();
+    if (e.key === "Enter") {
+      e.stopPropagation();
+      e.preventDefault();
+      const saveBtnEl = document.getElementById("saveEvent");
+      if (saveBtnEl) saveBtnEl.click();
     }
-  }
+  });
 });
