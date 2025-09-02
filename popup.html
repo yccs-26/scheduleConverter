@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Time Zone</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="libs/fullcalendar/index.global.min.js"></script>
+  </head>
+  <body>
+    <h2>Time Zone</h2>
+    
+
+    <!-- <div class="input-area">
+      <label>Date: <input type="date" id="date"></label><br>
+      <label>Time: <input type="time" id="time"></label><br>
+      <label>Title: <input type="text" id="title"></label><br>
+      <button id="addSchedule">Add Schedule</button>
+    </div> -->
+
+    <div class="timezone-select">
+      <label>Select City:
+        <select id="city">
+          <option value="Asia/Seoul">Seoul</option>
+          <option value="America/Denver">Denver</option>
+          <option value="America/San_Francisco">San Francisco</option>
+          <option value="America/New_York">New York</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="schedule-input">
+      <label>Default Time: <input type="time" id="defaultTime" value="09:00"></label>
+    </div>
+
+    <div id="calendar"></div>
+
+    <h3>Schedules</h3>
+
+    <div id="eventModal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span id="modalClose" class="close"><img src="resources/close.png" alt="close" /></span>
+          <h3>Schedule</h3>
+        </div>
+        <div class="modal-body">
+          <label>Input:
+            <input type="text" id="editInput" />
+          </label>
+          <div id="modalHint" class="hint"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="saveEvent">Save</button>
+          <button id="deleteEvent">Delete</button>
+          <button id="cancelEvent">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
